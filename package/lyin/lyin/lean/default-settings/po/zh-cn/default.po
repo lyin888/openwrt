@@ -111,8 +111,8 @@ msgstr "WIFI温度"
 msgid "NAS"
 msgstr "网络存储"
 
-msgid ""
-msgstr ""
+msgid "Auto Share"
+msgstr "自动共享"
 
 msgid ""
 msgstr ""
