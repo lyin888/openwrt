@@ -72,4 +72,5 @@ start()
 	done
 
 	[ -f /etc/index.htm ] && mv /etc/index.htm /usr/lib/lua/luci/view/admin_status/index.htm
+	[ -f /etc/samba4.lua ] && mv /etc/samba4.lua /usr/lib/lua/luci/model/cbi/samba4.lua
 }
