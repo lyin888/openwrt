@@ -45,16 +45,20 @@
 		local conn_max = tonumber(luci.sys.exec(
 			"sysctl -n -e net.nf_conntrack_max net.ipv4.netfilter.ip_conntrack_max"
 		):match("%d+")) or 4096
-
+		
 		local user_info = luci.sys.exec("cat /proc/net/arp | grep 'br-lan' | grep '0x2' | wc -l")
-
-		local cpu_usage = luci.sys.exec("top -n1 | awk '/^CPU/ { printf(\"%d%%\", 100 - $8) }'") or "6%"
-		local cpu_info = luci.sys.exec("/sbin/cpuinfo") or "ARM Processor x 0 (233MHz, 2.3°C)"
+		
+		local cpu_usage = (luci.sys.exec("expr 100 - $(top -n 1 | grep 'CPU:' | awk -F '%' '{print$4}' | awk -F ' ' '{print$2}')") or "6") .. "%"
+		local cpu_temp = luci.sys.exec("echo $(awk {'print sprintf(\"%.2f\",$1/1000)'} /sys/class/thermal/thermal_zone0/temp) ℃")
+		local wifi1_temp = luci.sys.exec("echo $(awk {'print sprintf(\"%.f\",$1/1000)'} /sys/class/ieee80211/phy0/hwmon1/temp1_input) ℃")
+		local wifi2_temp = luci.sys.exec("echo $(awk {'print sprintf(\"%.f\",$1/1000)'} /sys/class/ieee80211/phy1/hwmon2/temp1_input) ℃")
 
 		local rv = {
-			cpuinfo    = cpu_info,
-			cpuusage   = cpu_usage,
-			userinfo   = user_info,
+			cputemp = cpu_temp, 
+			wifi1temp = wifi1_temp, 
+			wifi2temp = wifi2_temp, 
+			cpuusage    = cpu_usage,
+			userinfo    = user_info,
 			uptime     = sysinfo.uptime or 0,
 			localtime  = os.date("%Y-%m-%d") .. " " .. os.date("%X") .. " " .. translate(os.date("%A")),
 			loadavg    = sysinfo.load or { 0, 0, 0 },
@@ -117,7 +121,7 @@
 
 <%+header%>
 
-<script type="text/javascript" src="<%=resource%>/cbi.js"></script>
+<script type="text/javascript" src="<%=resource%>/cbi.js?v=git-24.073.24156-0adf9d7"></script>
 <script type="text/javascript">//<![CDATA[
 	function progressbar(v, m)
 	{
@@ -142,13 +146,22 @@
 					.format(bss[p+'rate'] / 1000, bss[p+'mhz']),
 		    ht = bss[p+'ht'], vht = bss[p+'vht'],
 			mhz = bss[p+'mhz'], nss = bss[p+'nss'],
-			mcs = bss[p+'mcs'], sgi = bss[p+'short_gi'];
+			mcs = bss[p+'mcs'], sgi = bss[p+'short_gi'],
+			he = bss[p+'he'], he_gi = bss[p+'he_gi'],
+			he_dcm = bss[p+'he_dcm'];
 
 		if (ht || vht) {
 			if (vht) s += ', VHT-MCS %d'.format(mcs);
 			if (nss) s += ', VHT-NSS %d'.format(nss);
 			if (ht)  s += ', MCS %s'.format(mcs);
 			if (sgi) s += ', <%:Short GI%>';
+		}
+		
+		if (he) {
+			s += ', HE-MCS %d'.format(mcs);
+			if (nss) s += ', HE-NSS %d'.format(nss);
+			if (he_gi) s += ', HE-GI %d'.format(he_gi);
+			if (he_dcm) s += ', HE-DCM %d'.format(he_dcm);
 		}
 
 		return s;
@@ -646,8 +659,14 @@
 			if (e = document.getElementById('cpuusage'))
 				e.innerHTML = info.cpuusage;
 
-			if (e = document.getElementById('cpuinfo'))
-				e.innerHTML = info.cpuinfo;
+			if (e = document.getElementById('cputemp'))
+				e.innerHTML = info.cputemp;
+
+			if (e = document.getElementById('wifi1temp'))
+				e.innerHTML = info.wifi1temp;
+
+			if (e = document.getElementById('wifi2temp'))
+				e.innerHTML = info.wifi2temp;
 
 			if (e = document.getElementById('loadavg'))
 				e.innerHTML = String.format(
@@ -696,20 +715,18 @@
 	<table width="100%" cellspacing="10">
 		<tr><td width="33%"><%:Hostname%></td><td><%=luci.sys.hostname() or "?"%></td></tr>
 		<tr><td width="33%"><%:Model%></td><td><%=pcdata(boardinfo.model or "?")%> <%=luci.sys.exec("cat /etc/bench.log") or " "%></td></tr>
-		<tr><td width="33%"><%:CPU Architecture%></td><td><%=pcdata(boardinfo.system or "?")%> x <%=luci.sys.exec("cat /proc/cpuinfo | grep 'processor' | wc -l") or "1"%></td></tr>
-		<tr><td width="33%"><%:WIFI Temperature%></td><td>
-		2.4G : <%=luci.sys.exec("cut -c1-2 /sys/class/hwmon/hwmon0/temp1_input")%>℃ / 
-		5G : <%=luci.sys.exec("cut -c1-2 /sys/class/hwmon/hwmon1/temp1_input")%>℃
-		</td></tr>
+		<tr><td width="33%"><%:Architecture%></td><td><%=pcdata(boardinfo.system or "ARMv8 Processor")%> x <%=luci.sys.exec("cat /proc/cpuinfo | grep 'processor' | wc -l") or "1"%></td></tr>
+		<tr><td width="33%"><%:CPU Temperature%></td><td id="cputemp"></td></tr>
+		<tr><td width="33%"><%:WIFI Temperature%></td><td><a><%:%>  </a><a id="wifi1temp"></a><a>/        <a id="wifi2temp"></a><a></a></td></tr>
 		<tr><td width="33%"><%:Firmware Version%></td><td>
 			<%=pcdata(ver.distname)%> <%=pcdata(ver.distversion)%> /
 			<%=pcdata(ver.luciname)%> (<%=pcdata(ver.luciversion)%>)
 		</td></tr>
-		<tr><td width="33%"><%:Kernel Version%></td><td><%=luci.sys.exec("uname -r | awk -F '-' '{print $1}'") or "?"%></td></tr>
+		<tr><td width="33%"><%:Kernel Version%></td><td><%=unameinfo.release or "?"%></td></tr>
 		<tr><td width="33%"><%:Local Time%></td><td id="localtime">-</td></tr>
 		<tr><td width="33%"><%:Uptime%></td><td id="uptime">-</td></tr>
-		<tr><td width="33%"><%:CPU Usage%></td><td id="cpuusage">-</td></tr>
 		<tr><td width="33%"><%:Load Average%></td><td id="loadavg">-</td></tr>
+		<tr><td width="33%"><%:CPU usage (%)%></td><td id="cpuusage">-</td></tr>
 	</table>
 </fieldset>
 
