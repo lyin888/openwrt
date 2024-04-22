@@ -94,33 +94,20 @@ msgstr "Web 被反向代理到二级目录时，必须填写该选项以确保 W
 msgid "Delayed Start (seconds)"
 msgstr "开机延时启动（秒）"
 
-msgid "Enable Database"
-msgstr "启用远程数据库"
+msgid "Enable MySQL"
+msgstr "启用 MySQL"
 
-msgid "Database Type"
-msgstr "类型"
-
-msgid "Database Host"
+msgid "MySQL Host"
 msgstr "主机"
 
-msgid "Database Port"
+msgid "MySQL Port"
 msgstr "端口"
 
-msgid "Database Username"
+msgid "MySQL Username"
 msgstr "用户名"
 
-msgid "Database Password"
+msgid "MySQL Password"
 msgstr "密码"
 
 msgid "Database Name"
 msgstr "数据库名"
-
-msgid "Database Table Prefix"
-msgstr "数据库表前缀"
-
-msgid "Database SSL Mode"
-msgstr "SSL模式"
-
-msgid "Database DSN"
-msgstr "DSN"
-
