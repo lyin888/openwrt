@@ -1,5 +1,5 @@
 src-git packages https://github.com/lyin888/packages
-src-git luci https://github.com/lyin888/luci
+src-git luci https://github.com/lyin888/luci-23.05
 src-git routing https://github.com/coolsnowwolf/routing
 src-git telephony https://git.openwrt.org/feed/telephony.git
 src-git helloworld https://github.com/fw876/helloworld.git;main
